@@ -2,19 +2,55 @@ DROP DATABASE IF EXISTS ultimaDB;
 CREATE DATABASE ultimaDB;
 USE ultimaDB;
 
-drop user if exists login@"localhost";
+drop user if exists alumnoLogin@"localhost";
+drop user if exists docenteLogin@"localhost";
+drop user if exists adminLogin@"localhost";
 drop user if exists alumnoDB@"localhost";
 drop user if exists docenteDB@"localhost";
 drop user if exists adminDB@"localhost";
+/*
+CREATE TABLE checker_hack ( 
+    i tinyint,
+    test varchar(23),
+    i_must_be_between_7_and_12 BOOLEAN 
+         GENERATED ALWAYS AS (IF(i BETWEEN 7 AND 12, true, NULL)) 
+         VIRTUAL NOT NULL
+);
+
+select * from checker_hack;
+INSERT INTO checker_hack (i) VALUES (12);
+
+
+delimiter $$
+CREATE TRIGGER emptyString BEFORE INSERT ON Persona
+       FOR EACH ROW
+       chk: Begin 
+       IF(Persona.nombre = '   ') THEN
+       SET NEW.nombre=null;
+       END IF; 
+       IF(Persona.apellido = '   ') THEN
+       SET NEW.apellido=null;
+       END IF;
+       
+       END $$
+       
+delimiter ;
+       
+INSERT INTO persona VALUES(111111,'asd','sddd','clave1',0,NULL,NULL, TRUE);
+
+select * from persona;
+*/
 
 CREATE TABLE Grupo (
 idGrupo INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
 nombreGrupo VARCHAR(10) NOT NULL
 );
+
 CREATE TABLE Materia(
 idMateria INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
 nombreMateria VARCHAR(25) NOT NULL
 );
+
 CREATE TABLE Grupo_tiene_Materia (
     idGrupo INT NOT NULL,
     idMateria INT NOT NULL,
@@ -24,10 +60,12 @@ CREATE TABLE Grupo_tiene_Materia (
     FOREIGN KEY (idMateria)
         REFERENCES Materia (idMateria)
 ); 
+
 CREATE TABLE Orientacion(
 idOrientacion INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
 nombreOrientacion VARCHAR(25) NOT NULL
 );
+
 CREATE TABLE Orientacion_tiene_Grupo (
 idOrientacion INT NOT NULL,
 idGrupo INT NOT NULL,
@@ -35,16 +73,41 @@ PRIMARY KEY (idGrupo),
 FOREIGN KEY (idGrupo) REFERENCES Grupo(idGrupo),
 FOREIGN KEY (idOrientacion) REFERENCES Orientacion(idOrientacion)
 );
+
 CREATE TABLE Persona (
     ci INT(8) PRIMARY KEY NOT NULL,
-    nombre VARCHAR(20) NOT NULL,
-    apellido VARCHAR(20) NOT NULL,
-    clave VARCHAR(16) NOT NULL ,
+    nombre VARCHAR(26) NOT NULL,
+    apellido VARCHAR(26) NOT NULL,
+    clave VARCHAR(32) NOT NULL ,
     isDeleted BOOL NOT NULL,
     foto BLOB  NULL,
     avatar BLOB  NULL,
-    enLinea BOOL NOT NULL
+    enLinea BOOL NOT NULL,
+    CONSTRAINT notIn5point7 CHECK (ci between 10000000 AND 99999999),
+    CONSTRAINT notIn5point72 CHECK (nombre regexp "^[a-zA-Z]+$"),
+    CONSTRAINT notIn5point713 CHECK (apellido regexp "^[a-zA-Z]+$")
 );
+
+/* 
+       IF(NEW.nombre not REGEXP '[:alpha:]') THEN
+DECLARE start  INT unsigned DEFAULT 1; 
+
+drop trigger emptyString;
+delimiter $$
+CREATE TRIGGER emptyString BEFORE INSERT ON Persona
+       FOR EACH ROW
+       Begin 
+       IF(NEW.nombre not like '[a-z]') THEN
+			SET NEW.nombre=null;
+       END IF; 
+       IF(NEW.apellido  REGEXP '[0-9]') THEN
+       SET NEW.apellido=null;
+       END IF;
+       END $$
+delimiter ;
+INSERT INTO Persona Values (111,"abcdefghijklmnopqrstuvwxyz","ab","clave1",false,null,null,false);
+numbers OR symbols
+*/
 
 CREATE TABLE Administrador (
     ci INT NOT NULL UNIQUE,
@@ -60,15 +123,21 @@ CREATE TABLE Docente (
     FOREIGN KEY (ci)
         REFERENCES Persona (ci)
 );
-CREATE TABLE PersonaTemp(
-ci INT(8) PRIMARY KEY NOT NULL,
+
+/*grupos will be stored as a string and filtered with regular expression*/
+CREATE TABLE AlumnoTemp(
+ci INT(8) PRIMARY KEY NOT NULL ,
     nombre VARCHAR(20) NOT NULL,
     apellido VARCHAR(20) NOT NULL,
-    clave VARCHAR(16) NOT NULL,
+    clave VARCHAR(32) NOT NULL,
     foto BLOB  NULL,
     avatar BLOB  NULL,
-    tipoUser ENUM('alumno','docente','admin'));
-
+    apodo VARCHAR(20) UNIQUE,
+    grupos VARCHAR(30) NOT NULL,
+	CONSTRAINT d CHECK (ci between 10000000 AND 99999999),
+    CONSTRAINT adsa CHECK (nombre regexp "^[a-zA-Z]+$"),
+    CONSTRAINT sadddas CHECK (apellido regexp "^[a-zA-Z]+$"));
+    
 CREATE TABLE Docente_dicta_G_M (
 idGrupo INT NOT NULL,
 idMateria INT NOT NULL,
@@ -80,7 +149,7 @@ FOREIGN KEY (docenteCi) REFERENCES Docente (ci)
 );
 
 CREATE TABLE Alumno (
-  ci INT NOT NULL,
+  ci INT(8) NOT NULL,
     idAlumno INT NOT NULL AUTO_INCREMENT,
     apodo VARCHAR(20) UNIQUE,
     PRIMARY KEY(idAlumno,ci),
@@ -106,14 +175,14 @@ CREATE TABLE ConsultaPrivada (
     FOREIGN KEY (docenteCi)
         REFERENCES Docente (ci),
     FOREIGN KEY (alumnoCi)
-        REFERENCES Alumno (ci)
-        );
+        REFERENCES Alumno (ci));
+        
 CREATE TABLE CP_mensaje(
 idCp_mensaje INT NOT NULL,
 idConsultaPrivada INT NOT NULL,
 ciAlumno INT NOT NULL,
 ciDocente INT NOT NULL,
-contenido VARCHAR(1000) NOT NULL,
+contenido VARCHAR(10000) NOT NULL,
 attachment MEDIUMBLOB,
 cp_mensajeFechaHora DATETIME NOT NULL,
 cp_mensajeStatus ENUM('recibido','leido'),
@@ -122,9 +191,38 @@ PRIMARY KEY(idCp_mensaje,idConsultaPrivada,ciAlumno,ciDocente),
 FOREIGN KEY (idConsultaPrivada) REFERENCES ConsultaPrivada (idConsultaPrivada),
 FOREIGN KEY (ciAlumno) REFERENCES Alumno (ci),
 FOREIGN KEY (ciDocente) REFERENCES Docente (ci),
-FOREIGN KEY (ciDestinatario) REFERENCES Persona (ci)
-);
+FOREIGN KEY (ciDestinatario) REFERENCES Persona (ci));
 
+/*******************************************USUARIOS PARA LA FORM DE LOGIN/REGISTRO**************************************************/
+
+create user "alumnoLogin"@"localhost" identified by "alumnoLogin";
+grant select (ci) on ultimaDB.Alumno to "alumnoLogin"@"localhost";
+grant select on ultimaDB.Persona to "alumnoLogin"@"localhost";
+grant select on ultimaDB.Grupo to "alumnoLogin"@"localhost";
+grant insert on ultimaDB.AlumnoTemp to "alumnoLogin"@"localhost";
+
+create user "docenteLogin"@"localhost" identified by "docenteLogin";
+grant select (ci) on ultimaDB.Docente to "docenteLogin"@"localhost";
+grant select on ultimaDB.Persona to "docenteLogin"@"localhost";
+
+create user "adminLogin"@"localhost" identified by "adminLogin";
+grant select (ci) on ultimaDB.Administrador to "adminLogin"@"localhost";
+grant select on ultimaDB.Persona to "adminLogin"@"localhost";
+
+/****************************************USUARIOS NORMALES DE LA APP*******************************************************************/
+
+create user "alumnoDB"@"localhost" identified by "alumnoclave";
+grant all privileges on ultimaDB.* to "alumnoDB"@"localhost";
+
+create user "docenteDB"@"localhost" identified by "docenteclave";
+grant all privileges on ultimaDB.* to "docenteDB"@"localhost";
+
+create user "adminDB"@"localhost" identified by "adminclave";
+grant all privileges on ultimaDB.* to "adminDB"@"localhost";
+
+
+
+/********************************DEMO***********************************************/
 INSERT INTO Grupo (nombreGrupo) VALUES 
 ('1BB'),('2BB'),('3BB'),('3BA'),('3BC');
 
@@ -149,7 +247,7 @@ INSERT INTO Orientacion_tiene_Grupo VALUES
 (3,5);
 
 INSERT INTO Persona VALUES
-(11111111,'penelope','cruz','calve1',0,NULL,NULL, TRUE),
+(11111111,'Penelope','cruz','clave1',0,NULL,NULL, TRUE),
 (22222222,'pepe','red','clave2',0,NULL,NULL, TRUE),
 (33333333,'coco','rock','clave3',0,NULL,NULL, TRUE),
 (44444444,'lex','luther','clave4',0,NULL,NULL, TRUE),
@@ -164,6 +262,7 @@ INSERT INTO Administrador(ci) VALUES (99999999);
 INSERT INTO Docente (ci) VALUES
 (77777777),
 (88888888);
+
 
 INSERT INTO Docente_dicta_G_M VALUES 
 (1,1,77777777),
@@ -208,15 +307,7 @@ INSERT INTO Alumno_tiene_Grupo VALUES
 (66666666,1),
 (22222222,2),
 (44444444,1);
-/*
-INSERT INTO Docente_Conexion(docenteCi,FechaConexion) VALUES
-(77777777,NOW()),
-(88888888,NOW());
 
-INSERT INTO Docente_Desconexion(docenteCi,FechaDesconexion) VALUES
-(77777777,NOW() + INTERVAL 1 DAY),
-(88888888,NOW() + INTERVAL 2 HOUR);
-*/
 INSERT INTO ConsultaPrivada(idConsultaPrivada,docenteCi,alumnoCi,titulo,cpStatus,cpFechaHora) VALUES
 (1,77777777,11111111,'hola','pendiente',NOW()),
 (1,77777777,22222222,'profe hello','pendiente',NOW()),
@@ -250,18 +341,3 @@ VALUES
 (2,3,77777777,11111111,'asdasda',NULL,NOW(),'recibido',11111111),
 (1,4,77777777,11111111,'asdasda',NULL,NOW(),'recibido',77777777),
 (2,4,77777777,11111111,'asdasda',NULL,NOW(),'recibido',11111111);
-
-create user "login"@"localhost" identified by "login";
-grant select (ci) on ultimaDB.Alumno to "login"@"localhost";
-grant select (ci) on ultimaDB.Administrador to "login"@"localhost";
-grant select (ci) on ultimaDB.Docente to "login"@"localhost";
-grant select (ci,clave,nombre,apellido,isDeleted) on ultimaDB.Persona to "login"@"localhost";
-
-create user "alumnoDB"@"localhost" identified by "alumnoclave";
-grant all privileges on ultimaDB.* to "alumnoDB"@"localhost";
-
-create user "docenteDB"@"localhost" identified by "docenteclave";
-grant all privileges on ultimaDB.* to "docenteDB"@"localhost";
-
-create user "adminDB"@"localhost" identified by "adminclave";
-grant all privileges on ultimaDB.* to "adminDB"@"localhost";
